@@ -2,7 +2,7 @@
 
 Tiny command-line tool to pack sprites and fonts into a spritesheet. Output is a PNG image (the spritesheet) and a XML description.
 
-The font packer can also add simple effects like borders, gradients and drop shadows.
+The font packer can also add simple effects like outlines, gradients and drop shadows.
 
 ## sample
 
@@ -24,7 +24,7 @@ The font packer can also add simple effects like borders, gradients and drop sha
 
 `sheetname` is the basename of the generated XML/PNG files, and `spritepath` is the path of a directory with the sprites to be packed.
 
-### packfonts
+### packfont
 
     usage: packfont [options] font sheetname range...
 
