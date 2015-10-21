@@ -1,6 +1,7 @@
 #pragma once
 
-#include <vector>
+#include <cstddef>
+#include <memory>
 
 #include "pixmap.h"
 
@@ -20,5 +21,5 @@ struct sprite_base
 
 	virtual void serialize(TiXmlElement *el) const = 0;
 
-	pixmap *pm_;
+	std::unique_ptr<pixmap> pm_;
 };

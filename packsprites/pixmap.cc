@@ -10,13 +10,12 @@
 #include "pixmap.h"
 #include "panic.h"
 
-pixmap *
-pixmap::load(const char *path)
+pixmap::pixmap(const char *png_path)
 {
 	FILE *in;
 
-	if ((in = fopen(path, "rb")) == 0)
-		panic("failed to open `%s': %s", path, strerror(errno));
+	if ((in = fopen(png_path, "rb")) == 0)
+		panic("failed to open `%s': %s", png_path, strerror(errno));
 
 	png_structp png_ptr;
 	if ((png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0)) == 0)
@@ -38,87 +37,55 @@ pixmap::load(const char *path)
 	if (bit_depth != 8)
 		panic("invalid bit depth in PNG");
 
-	type pixmap_type = INVALID;
+	type_ = INVALID;
 
 	switch (color_type) {
 		case PNG_COLOR_TYPE_GRAY:
-			pixmap_type = GRAY;
+			type_ = GRAY;
 			break;
 
 		case PNG_COLOR_TYPE_GRAY_ALPHA:
-			pixmap_type = GRAY_ALPHA;
+			type_ = GRAY_ALPHA;
 			break;
 
 		case PNG_COLOR_TYPE_RGB:
-			pixmap_type = RGB;
+			type_ = RGB;
 			break;
 
 		case PNG_COLOR_TYPE_RGBA:
-			pixmap_type = RGB_ALPHA;
+			type_ = RGB_ALPHA;
 			break;
 
 		default:
 			panic("invalid color type in PNG");
 	}
 
-	const size_t width = png_get_image_width(png_ptr, info_ptr);
-	const size_t height = png_get_image_height(png_ptr, info_ptr);
-
-	const size_t stride = width*get_pixel_size(pixmap_type);
-
-	pixmap *pm = new pixmap(width, height, pixmap_type);
+	width_ = png_get_image_width(png_ptr, info_ptr);
+	height_ = png_get_image_height(png_ptr, info_ptr);
+	bits_.resize(width_*height_*get_pixel_size(type_));
 
 	png_bytep *rows = png_get_rows(png_ptr, info_ptr);
 
-	for (size_t i = 0; i < height; i++)
-		memcpy(&pm->bits_[i*stride], rows[i], stride);
+	const size_t stride = width_*get_pixel_size(type_);
+
+	for (size_t i = 0; i < height_; i++)
+		memcpy(&bits_[i*stride], rows[i], stride);
 
 	png_destroy_read_struct(&png_ptr, &info_ptr, 0);
 
 	fclose(in);
-
-	return pm;
 }
 
 pixmap::pixmap(int width, int height, type pixmap_type)
 : width_(width)
 , height_(height)
-, bits_(new uint8_t[width*height*get_pixel_size(pixmap_type)])
 , type_(pixmap_type)
 {
-	::memset(bits_, 0, width*height*get_pixel_size());
+	bits_.resize(width*height*get_pixel_size(type_));
 }
 
 pixmap::~pixmap()
-{
-	delete[] bits_;
-}
-
-void
-pixmap::resize(size_t new_width, size_t new_height)
-{
-	if (new_width != width_ || new_height != height_) {
-		size_t pixel_size = get_pixel_size();
-
-		uint8_t *new_bits = new uint8_t[new_width*new_height*pixel_size];
-		::memset(new_bits, 0, new_width*new_height*pixel_size);
-
-		const int copy_height = std::min(height_, new_height);
-		const int copy_width = std::min(width_, new_width);
-
-		for (int i = 0; i < copy_height; i++) {
-			uint8_t *dest = &new_bits[i*new_width*pixel_size];
-			uint8_t *src = &bits_[i*width_*pixel_size];
-			::memcpy(dest, src, copy_width*pixel_size);
-		}
-
-		delete[] bits_;
-
-		width_ = new_width;
-		height_ = new_height;
-		bits_ = new_bits;
-	}
-}
+{ }
 
 #ifndef png_jmpbuf
 #define png_jmpbuf(png_ptr) ((png_ptr)->jmpbuf)
@@ -185,7 +152,7 @@ pixmap::save(const std::string& path) const
 	const size_t stride = width_*get_pixel_size();
 
 	for (size_t i = 0; i < height_; i++)
-		png_write_row(png_ptr, reinterpret_cast<png_byte *>(&bits_[i*stride]));
+		png_write_row(png_ptr, const_cast<png_bytep>(&bits_[i*stride]));
 
 	png_write_end(png_ptr, info_ptr);
 
@@ -219,73 +186,5 @@ pixmap::get_pixel_size(type pixmap_type)
 		default:
 			assert(0);
 			return 0; // XXX
-	}
-}
-
-bool
-pixmap::row_is_empty(int row) const
-{
-	switch (type_) {
-		case GRAY_ALPHA:
-			{
-			const uint16_t *p = reinterpret_cast<uint16_t *>(bits_) + row*width_;
-
-			for (size_t i = 0; i < width_; i++) {
-				if (p[i] >> 8)
-					return false;
-			}
-
-			return true;
-			}
-
-		case RGB_ALPHA:
-			{
-			const uint32_t *p = reinterpret_cast<uint32_t *>(bits_) + row*width_;
-
-			for (size_t i = 0; i < width_; i++) {
-				if (p[i] >> 24)
-					return false;
-			}
-
-			return true;
-			}
-
-		default:
-			return false;
-	}
-}
-
-bool
-pixmap::column_is_empty(int col) const
-{
-	switch (type_) {
-		case GRAY_ALPHA:
-			{
-			const uint16_t *p = reinterpret_cast<uint16_t *>(bits_) + col;
-
-			for (size_t i = 0; i < height_; i++) {
-				if (*p >> 8)
-					return false;
-				p += width_;
-			}
-
-			return true;
-			}
-
-		case RGB_ALPHA:
-			{
-			const uint32_t *p = reinterpret_cast<uint32_t *>(bits_) + col;
-
-			for (size_t i = 0; i < height_; i++) {
-				if (*p >> 24)
-					return false;
-				p += width_;
-			}
-
-			return true;
-			}
-
-		default:
-			return false;
 	}
 }

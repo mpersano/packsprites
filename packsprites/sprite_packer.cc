@@ -88,7 +88,7 @@ write_sprite_sheet(pixmap& pm, const node *root)
 		write_sprite_sheet(pm, root->left_);
 		write_sprite_sheet(pm, root->right_);
 	} else if (root->sprite_) {
-		const pixmap *child_pm = root->sprite_->pm_;
+		const pixmap *child_pm = root->sprite_->pm_.get();
 
 		assert(child_pm->get_pixel_size() == pm.get_pixel_size());
 

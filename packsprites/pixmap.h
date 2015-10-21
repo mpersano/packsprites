@@ -1,7 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
-#include <stdint.h>
+#include <vector>
 
 class pixmap
 {
@@ -9,6 +10,7 @@ public:
 	enum type { GRAY, GRAY_ALPHA, RGB, RGB_ALPHA, INVALID };
 
 	pixmap(int width, int height, type pixmap_type);
+	pixmap(const char *png_path);
 
 	virtual ~pixmap();
 
@@ -19,10 +21,10 @@ public:
 	{ return height_; }
 
 	const uint8_t *get_bits() const
-	{ return bits_; }
+	{ return &bits_[0]; }
 
 	uint8_t *get_bits()
-	{ return bits_; }
+	{ return &bits_[0]; }
 
 	type get_type() const
 	{ return type_; }
@@ -31,22 +33,14 @@ public:
 
 	static size_t get_pixel_size(type pixmap_type);
 
-	void resize(size_t new_width, size_t new_height);
-
-	static pixmap *load(const char *path);
-
 	void save(const std::string& path) const;
 
-protected:
-	bool row_is_empty(int row) const;
-	bool column_is_empty(int col) const;
-
+private:
 	size_t width_;
 	size_t height_;
-	uint8_t *bits_;
+	std::vector<uint8_t> bits_;
 	type type_;
 
-private:
 	pixmap(const pixmap&); // disable copy ctor
 	pixmap& operator=(const pixmap&); // disable assignment
 };

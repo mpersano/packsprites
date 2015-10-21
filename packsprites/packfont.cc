@@ -74,7 +74,21 @@ private:
 void
 usage(const char *argv0)
 {
-	fprintf(stderr, "usage: %s <options> font sheet_name ranges...\n", argv0);
+	fprintf(stderr,
+		"usage: packfont [options] font sheetname range...\n"
+		"\n"
+		"options:\n"
+		"-b	size in pixels of border around the packed sprites (default: 2)\n"
+		"-w	spritesheet width (default: 256)\n"
+		"-h	spritesheet height (default: 256)\n"
+		"-s	font size (default: 16)\n"
+		"-g	outline radius, in pixels (default: 2)\n"
+		"-i	font color\n"
+		"-o	outline color\n"
+		"-S	drop shadow opacity, between 0 and 1 (default: .2)\n"
+		"-B	drop shadow gaussian blur radius, in pixels (default: 0)\n"
+		"-d	drop shadow x offset, in pixels (default: 0)\n"
+		"-e	drop shadow y offset, in pixels (default: 0)\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -208,24 +222,19 @@ main(int argc, char *argv[])
 	for (int i = optind + 2; i < argc; i++) {
 		char *range = argv[i];
 
+		int from = parse_int(range), to;
+
 		if (char *dash = strchr(range, '-')) {
 			*dash = '\0';
-
-			for (int j = parse_int(range); j <= parse_int(dash + 1); j++)
-				sprites.push_back(
-					f.render_glyph(
-						j,
-						outline_radius,
-						*inner_color.get(),
-						*outline_color.get(),
-						shadow_dx,
-						shadow_dy,
-						shadow_opacity,
-						shadow_blur_radius));
+			to = parse_int(dash + 1);
 		} else {
+			to = from;
+		}
+
+		for (int j = from; j <= to; j++) {
 			sprites.push_back(
 				f.render_glyph(
-					parse_int(range),
+					j,
 					outline_radius,
 					*inner_color.get(),
 					*outline_color.get(),

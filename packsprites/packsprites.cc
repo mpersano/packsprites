@@ -34,9 +34,7 @@ load_sprites(const char *dir_name)
 			char path[PATH_MAX];
 			sprintf(path, "%s/%s", dir_name, name);
 
-			pixmap *pm = pixmap::load(path);
-
-			sprite *sp = new sprite(name, pm);
+			sprite *sp = new sprite(name, new pixmap(path));
 			fprintf(stderr, "%s: %ux%u\n", name, sp->width(), sp->height());
 			sprites.push_back(sp);
 		}
@@ -48,7 +46,14 @@ load_sprites(const char *dir_name)
 static void
 usage(const char *argv0)
 {
-	fprintf(stderr, "usage: %s <options> sheet_name path\n", argv0);
+	fprintf(stderr,
+		"usage: packsprites [options] sheetname spritepath\n"
+		"\n"
+		"options:\n"
+		"-b	size of border around the packed sprites, in pixels (default: 2)\n"
+		"-w	spritesheet width (default: 256)\n"
+		"-h	spritesheet height (default: 256)\n");
+
 	exit(EXIT_FAILURE);
 }
 

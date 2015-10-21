@@ -4,6 +4,12 @@ Tiny command-line tool to pack sprites and fonts into a spritesheet. Output is a
 
 The font packer can also add simple effects like borders, gradients and drop shadows.
 
+## sample
+
+![sample](/sample.png?raw=true "sample")
+
+    ./packfont -w 600 -h 256 -s 36 -g 3 -d 2 -e 2 -B 2 -S .4 -i ffff00-ffffff-ff0000 -o 8f0000-3f3f00 DejaVuSans.ttf sample x61-x7a x41-x5a x30-x39
+
 ## usage
 
 ### packsprites
@@ -36,12 +42,6 @@ The font packer can also add simple effects like borders, gradients and drop sha
     -e		drop shadow y offset, in pixels (default: 0)
 
 `font` is a path to a TrueType font, `sheetname` is the basename of the generated XML/PNG files, and `range` is a character range (e.g. `x30-x39`). Multiple character ranges are accepted.
-
-## sample
-
-![sample](/sample.png?raw=true "sample")
-
-    ./packfont -w 512 -h 256 -s 36 -g 3 -d 2 -e 4 -S .4 -i ffff00-ffffff-ff0000 -o 00003f-3f3f00 font.ttf tiny x61-x7a x41-x5a x30-x39
 
 ## output format
 
