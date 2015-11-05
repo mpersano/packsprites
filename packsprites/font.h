@@ -3,7 +3,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include "rgb.h"
+#include "rgba.h"
 #include "sprite_base.h"
 
 struct glyph : sprite_base
@@ -21,7 +21,7 @@ class color_fn
 public:
 	virtual ~color_fn() = default;
 
-	virtual rgb<int> operator()(float t) const = 0;
+	virtual rgba<int> operator()(float t) const = 0;
 };
 
 class font

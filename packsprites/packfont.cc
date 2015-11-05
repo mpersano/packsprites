@@ -22,15 +22,15 @@ namespace {
 class flat_color_fn : public color_fn
 {
 public:
-	flat_color_fn(const rgb<int>& color)
+	flat_color_fn(const rgba<int>& color)
 	: color_(color)
 	{ }
 
-	rgb<int> operator()(float t) const override
+	rgba<int> operator()(float t) const override
 	{ return color_; }
 
 private:
-	rgb<int> color_;
+	rgba<int> color_;
 };
 
 // lame linear gradient
@@ -38,15 +38,15 @@ private:
 class gradient_color_fn : public color_fn
 {
 public:
-	gradient_color_fn(const rgb<int>& from, const rgb<int>& to)
+	gradient_color_fn(const rgba<int>& from, const rgba<int>& to)
 	: from_(from), to_(to)
 	{ }
 
-	rgb<int> operator()(float t) const override
+	rgba<int> operator()(float t) const override
 	{ return from_ + (to_ - from_)*t; }
 
 private:
-	rgb<int> from_, to_;
+	rgba<int> from_, to_;
 };
 
 // quadratic bezier gradient
@@ -54,11 +54,11 @@ private:
 class bezier_color_fn : public color_fn
 {
 public:
-	bezier_color_fn(const rgb<int>& c0, const rgb<int>& c1, const rgb<int>& c2)
+	bezier_color_fn(const rgba<int>& c0, const rgba<int>& c1, const rgba<int>& c2)
 	: c0_(c0), c1_(c1), c2_(c2)
 	{ }
 
-	rgb<int> operator()(float u) const override
+	rgba<int> operator()(float u) const override
 	{
 		const float w0 = (1 - u)*(1 - u);
 		const float w1 = 2*u*(1 - u);
@@ -68,7 +68,7 @@ public:
 	}
 
 private:
-	rgb<int> c0_, c1_, c2_;
+	rgba<int> c0_, c1_, c2_;
 };
 
 void
@@ -98,11 +98,11 @@ parse_int(const char *str)
 	return *str == 'x' || *str == 'X' ? strtol(str + 1, 0, 16) : strtol(str, 0, 10);
 }
 
-rgb<int>
+rgba<int>
 parse_color(const char *str)
 {
-	rgb<int> c;
-	sscanf(str, "%02x%02x%02x", &c.r, &c.g, &c.b);
+	rgba<int> c;
+	sscanf(str, "%02x%02x%02x%02x", &c.a, &c.r, &c.g, &c.b);
 	return c;
 }
 
@@ -151,8 +151,8 @@ main(int argc, char *argv[])
 	int shadow_blur_radius = 0;
 	std::string texture_path_base = ".";
 
-	std::unique_ptr<color_fn> inner_color { new flat_color_fn { rgb<int> { 255, 255, 255 } } };
-	std::unique_ptr<color_fn> outline_color { new flat_color_fn { rgb<int> { 0, 0, 0 } } };
+	std::unique_ptr<color_fn> inner_color { new flat_color_fn { rgba<int> { 255, 255, 255, 255 } } };
+	std::unique_ptr<color_fn> outline_color { new flat_color_fn { rgba<int> { 0, 0, 0, 255 } } };
 
 	int c;
 

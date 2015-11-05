@@ -5,7 +5,7 @@
 #include <tinyxml.h>
 
 #include "rect.h"
-#include "rgb.h"
+#include "rgba.h"
 #include "panic.h"
 #include "font.h"
 
@@ -292,60 +292,73 @@ font::render_glyph(
 
 	// create outline with dilation morphological filter
 
-	image<float> alpha = dilate(lum, outline_radius);
+	image<float> outline = dilate(lum, outline_radius);
 
-	// drop shadow
-
-	image<float> shadow(dest_width, dest_height);
-	shadow.copy(alpha, shadow_dy, shadow_dx);
-	shadow *= shadow_opacity;
-	shadow.blur(shadow_blur_radius);
-
-	// initialize pixmap, adding some color
+	// add some happy colors
 
 	pixmap *pm = new pixmap(dest_width, dest_height, pixmap::RGB_ALPHA);
 
-	{
-	auto src_lum = std::begin(lum.data);
-	auto src_alpha = std::begin(alpha.data);
-	auto src_shadow = std::begin(shadow.data);
+	auto *pm_pixels = reinterpret_cast<uint32_t *>(pm->get_bits());
 
-	auto *dest = reinterpret_cast<uint32_t *>(pm->get_bits());
+	auto src_lum = std::begin(lum.data);
+	auto src_outline = std::begin(outline.data);
+
+	auto *dest = pm_pixels;
 
 	for (int i = 0; i < dest_height; i++) {
 		const float t = static_cast<float>(i)/dest_height; // XXX: should sub outline radius for inner color
 
-		const rgb<int> c0 = inner_color(t);
-		const rgb<int> c1 = outline_color(t);
+		auto c0 = inner_color(t);
+		auto c1 = outline_color(t);
 
 		for (int j = 0; j < dest_width; j++) {
-#if 1
-			rgb<int> fg_color = c1 + (c0 - c1)*(*src_lum++);
+			auto l = *src_lum++;
+			auto o = *src_outline++;
 
-			float s = *src_shadow++;
+			auto c = c0*l + c1*(1 - l);
+			c.a *= o;
 
-			rgb<int> bg_color { 0, 0, 0 };
-
-			float o = *src_alpha++;
-			rgb<int> color = bg_color + (fg_color - bg_color)*o;
-
-			int a = static_cast<int>(255*(s + (1. - s)*o));
-
-			*dest++ = color.r + (color.g << 8) + (color.b << 16) + (a << 24);
-#else
-#if 0
-			rgb<int> color = c1 + (c0 - c1)*(*src_lum++);
-
-			int a = static_cast<int>(255*(*src_alpha++));
-
-			*dest++ = color.r + (color.g << 8) + (color.b << 16) + (a << 24);
-#else
-			int s = 255*(*src_shadow++);
-			*dest++ = s << 24;
-#endif
-#endif
+			*dest++ = c;
 		}
 	}
+
+	// drop shadow
+
+	if (shadow_dx || shadow_dy || shadow_blur_radius) {
+		image<float> alpha(dest_width, dest_height);
+		std::transform(
+			pm_pixels,
+			pm_pixels + dest_width*dest_height,
+			std::begin(alpha.data),
+			[](uint32_t v) { return static_cast<float>(v >> 24)/255.f; });
+
+		image<float> shadow(dest_width, dest_height);
+		shadow.copy(alpha, shadow_dy, shadow_dx);
+		shadow *= shadow_opacity;
+
+		shadow.blur(shadow_blur_radius);
+
+		auto src_shadow = std::begin(shadow.data);
+		auto *dest = pm_pixels;
+
+		for (int i = 0; i < dest_width*dest_height; i++) {
+			auto v = *dest;
+			auto s = *src_shadow++;
+
+			auto c = rgba<unsigned> { v };
+			auto a = static_cast<float>(c.a)/255.f;
+
+			// https://en.wikipedia.org/wiki/Alpha_compositing
+			auto t = a/(a + s*(1.f - a));
+			c.r *= t;
+			c.g *= t;
+			c.b *= t;
+
+			a += s*(1.f - a);
+			c.a = static_cast<unsigned>(255.f*a);
+
+			*dest++ = c;
+		}
 	}
 
 	const FT_Glyph_Metrics *metrics = &slot->metrics;
