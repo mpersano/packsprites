@@ -2,7 +2,6 @@
 
 #include <tinyxml.h>
 
-#include "rect.h"
 #include "sprite.h"
 
 sprite::sprite(const char *name, pixmap *pm)

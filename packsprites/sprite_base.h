@@ -6,7 +6,6 @@
 #include "rgba.h"
 #include "image.h"
 
-class rect;
 class TiXmlElement;
 
 struct sprite_base

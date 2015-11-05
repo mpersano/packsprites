@@ -4,7 +4,6 @@
 
 #include <tinyxml.h>
 
-#include "rect.h"
 #include "rgba.h"
 #include "image.h"
 #include "panic.h"

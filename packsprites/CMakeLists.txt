@@ -8,7 +8,6 @@ include_directories(
 	${TinyXML_INCLUDE_DIR})
 
 set(COMMON_SOURCES
-	rect.cc
 	panic.cc
 	sprite_base.cc
 	sprite_packer.cc

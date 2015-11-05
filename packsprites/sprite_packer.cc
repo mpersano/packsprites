@@ -1,17 +1,43 @@
 #include <cassert>
 #include <cstring>
+#include <utility>
 
 #include <algorithm>
 
 #include <tinyxml.h>
 
 #include "panic.h"
-#include "rect.h"
 #include "sprite_base.h"
 #include "sprite_packer.h"
 #include "png_util.h"
 
 namespace {
+
+struct rect
+{
+	rect(int left, int top, int width, int height)
+	: left_(left), top_(top), width_(width), height_(height)
+	{ }
+
+	int left_, top_, width_, height_;
+
+	std::pair<rect, rect> split_vert(int c) const;
+	std::pair<rect, rect> split_horiz(int r);
+};
+
+std::pair<rect, rect>
+rect::split_vert(int c) const
+{
+	assert(c < width_);
+	return std::pair<rect, rect>(rect(left_, top_, c, height_), rect(left_ + c, top_, width_ - c, height_));
+}
+
+std::pair<rect, rect>
+rect::split_horiz(int r)
+{
+	assert(r < height_);
+	return std::pair<rect, rect>(rect(left_, top_, width_, r), rect(left_, top_ + r, width_, height_ - r));
+}
 
 struct node
 {
