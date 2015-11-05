@@ -3,23 +3,24 @@
 #include <cstddef>
 #include <memory>
 
-#include "pixmap.h"
+#include "rgba.h"
+#include "image.h"
 
 class rect;
 class TiXmlElement;
 
 struct sprite_base
 {
-	sprite_base(pixmap *pm);
+	sprite_base(const image<rgba<int>>& im);
 	virtual ~sprite_base();
 
 	size_t width() const
-	{ return pm_->get_width(); }
+	{ return im_.width; }
 
 	size_t height() const
-	{ return pm_->get_height(); }
+	{ return im_.height; }
 
 	virtual void serialize(TiXmlElement *el) const = 0;
 
-	std::unique_ptr<pixmap> pm_;
+	image<rgba<int>> im_;
 };

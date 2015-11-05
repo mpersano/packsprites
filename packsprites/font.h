@@ -8,7 +8,7 @@
 
 struct glyph : sprite_base
 {
-	glyph(wchar_t code, int left, int top, int advance_x, pixmap *pm);
+	glyph(wchar_t code, int left, int top, int advance_x, const image<rgba<int>> im);
 
 	void serialize(TiXmlElement *el) const override;
 

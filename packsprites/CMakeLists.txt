@@ -8,15 +8,13 @@ include_directories(
 	${TinyXML_INCLUDE_DIR})
 
 set(COMMON_SOURCES
-	font.cc
 	rect.cc
 	panic.cc
-	pixmap.cc
-	sprite.cc
 	sprite_base.cc
-	sprite_packer.cc)
+	sprite_packer.cc
+	png_util.cc)
 
-add_executable(packfont packfont.cc ${COMMON_SOURCES})
+add_executable(packfont packfont.cc font.cc ${COMMON_SOURCES})
 
 target_link_libraries(
 	packfont
@@ -24,10 +22,10 @@ target_link_libraries(
 	${PNG_LIBRARIES}
 	${TinyXML_LIBRARY})
 
-add_executable(packsprites packsprites.cc ${COMMON_SOURCES})
-
-target_link_libraries(
-	packsprites
-	${FREETYPE_LIBRARIES}
-	${PNG_LIBRARIES}
-	${TinyXML_LIBRARY})
+# add_executable(packsprites packsprites.cc sprite.cc ${COMMON_SOURCES})
+# 
+# target_link_libraries(
+# 	packsprites
+# 	${FREETYPE_LIBRARIES}
+# 	${PNG_LIBRARIES}
+# 	${TinyXML_LIBRARY})

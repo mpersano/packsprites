@@ -6,128 +6,11 @@
 
 #include "rect.h"
 #include "rgba.h"
+#include "image.h"
 #include "panic.h"
 #include "font.h"
 
 namespace {
-
-template <typename T>
-struct image
-{
-	image(int width, int height)
-	: width { width }
-	, height { height }
-	, data(width*height)
-	{ }
-
-	image(int width, int height, uint8_t *initial_data)
-	: width { width }
-	, height { height }
-	, data(width*height)
-	{
-		std::transform(
-			initial_data,
-			initial_data + width*height,
-			std::begin(data),
-			[](uint8_t v) { return static_cast<float>(v)/255.f; });
-	}
-
-	void copy(const image<T>& other, int dr, int dc);
-
-	void blur(int radius);
-
-	image&
-	operator*=(float s)
-	{
-		std::transform(
-			std::begin(data),
-			std::end(data),
-			std::begin(data),
-			[=](float v) { return s*v; });
-
-		return *this;
-	}
-
-	int width, height;
-	std::vector<T> data;
-};
-
-template <typename T>
-void
-image<T>::copy(const image<T>& other, int dr, int dc)
-{
-	int r0 = std::max(dr, 0);
-	int r1 = std::min(dr + other.height, height);
-
-	int c0 = std::max(dc, 0);
-	int c1 = std::min(dc + other.width, width);
-
-	for (int r = r0; r < r1; r++)
-		for (int c = c0; c < c1; c++)
-			data[r*width + c] = other.data[(r - dr)*other.width + (c - dc)];
-}
-
-template <typename T>
-void
-image<T>::blur(int radius)
-{
-	std::vector<float> kernel(2*radius + 1);
-
-	for (int i = 0; i < kernel.size(); i++) {
-		float f = i - radius;
-		kernel[i] = expf(-f*f/30.);
-	}
-
-	float s = std::accumulate(std::begin(kernel), std::end(kernel), 0.f);
-
-	std::transform(
-		std::begin(kernel),
-		std::end(kernel),
-		std::begin(kernel),
-		[=](float v) { return v/s; });
-
-	// blur horizontally to temp
-
-	std::vector<T> temp(width*height);
-
-	for (int i = 0; i < height; i++) {
-		T *src = &data[i*width];
-		T *dest = &temp[i*width];
-
-		for (int j = 0; j < width; j++) {
-			T s = 0;
-
-			for (int k = 0; k < kernel.size(); k++) {
-				if (j + k - radius < 0 || j + k - radius >= width)
-					continue;
-				s += kernel[k]*src[k - radius];
-			}
-
-			*dest++ = s;
-			++src;
-		}
-	}
-
-	// blur vertically from temp
-
-	for (int i = 0; i < height; i++) {
-		T *src = &temp[i*width];
-		T *dest = &data[i*width];
-
-		for (int j = 0; j < width; j++) {
-			T s = 0;
-
-			for (int k = 0; k < kernel.size(); k++) {
-				if (i + k - radius < 0 || i + k - radius >= height)
-					continue;
-				s += kernel[k]*src[(k - radius)*width];
-			}
-
-			*dest++ = s;
-			++src;
-		}
-	}
-}
 
 template <typename T>
 image<T>
@@ -153,7 +36,7 @@ dilate(const image<T>& im, int radius)
 
 	image<T> rv(im.width, im.height);
 
-	auto dest = std::begin(rv.data);
+	auto dest = std::begin(rv.pixels);
 
 	for (int i = 0; i < im.height; i++) {
 		for (int j = 0; j < im.width; j++) {
@@ -164,9 +47,9 @@ dilate(const image<T>& im, int radius)
 					int r = i + dr;
 					int c = j + dc;
 
-					if (r >= 0 && r < im.height  && c >= 0 && c < im.width) {
+					if (r >= 0 && r < im.height && c >= 0 && c < im.width) {
 						const float w = kernel[dr + radius][dc + radius];
-						v = std::max(v, w*im.data[r*im.width + c]);
+						v = std::max(v, w*im.pixels[r*im.width + c]);
 					}
 				}
 			}
@@ -180,8 +63,8 @@ dilate(const image<T>& im, int radius)
 
 } // (anonymous namespace)
 
-glyph::glyph(wchar_t code, int left, int top, int advance_x, pixmap *pm)
-: sprite_base(pm)
+glyph::glyph(wchar_t code, int left, int top, int advance_x, image<rgba<int>> im)
+: sprite_base(im)
 , code_(code)
 , left_(left)
 , top_(top)
@@ -265,6 +148,8 @@ font::render_glyph(
 	const int src_height = bitmap->rows;
 	const int src_width = bitmap->pitch;
 
+	// figure out final size
+
 	int dest_height = src_height + 2*outline_radius;
 	int dest_width = src_width + 2*outline_radius;
 
@@ -287,8 +172,11 @@ font::render_glyph(
 
 	// copy grayscale channel
 
+	image<float> orig(src_width, src_height, bitmap->buffer);
+	orig *= 1.f/255;
+
 	image<float> lum(dest_width, dest_height);
-	lum.copy(image<float>(src_width, src_height, bitmap->buffer), offset_y, offset_x);
+	lum.copy(orig, offset_y, offset_x);
 
 	// create outline with dilation morphological filter
 
@@ -296,29 +184,22 @@ font::render_glyph(
 
 	// add some happy colors
 
-	pixmap *pm = new pixmap(dest_width, dest_height, pixmap::RGB_ALPHA);
-
-	auto *pm_pixels = reinterpret_cast<uint32_t *>(pm->get_bits());
-
-	auto src_lum = std::begin(lum.data);
-	auto src_outline = std::begin(outline.data);
-
-	auto *dest = pm_pixels;
+	image<rgba<float>> color_glyph(dest_width, dest_height);
 
 	for (int i = 0; i < dest_height; i++) {
 		const float t = static_cast<float>(i)/dest_height; // XXX: should sub outline radius for inner color
 
-		auto c0 = inner_color(t);
-		auto c1 = outline_color(t);
+		const float f = 1.f/255;
+		auto c0 = rgba<float>(inner_color(t))*f;
+		auto c1 = rgba<float>(outline_color(t))*f;
 
 		for (int j = 0; j < dest_width; j++) {
-			auto l = *src_lum++;
-			auto o = *src_outline++;
+			auto l = lum(i, j);
 
 			auto c = c0*l + c1*(1 - l);
-			c.a *= o;
+			c.a *= outline(i, j);
 
-			*dest++ = c;
+			color_glyph(i, j) = c;
 		}
 	}
 
@@ -327,37 +208,35 @@ font::render_glyph(
 	if (shadow_dx || shadow_dy || shadow_blur_radius) {
 		image<float> alpha(dest_width, dest_height);
 		std::transform(
-			pm_pixels,
-			pm_pixels + dest_width*dest_height,
-			std::begin(alpha.data),
-			[](uint32_t v) { return static_cast<float>(v >> 24)/255.f; });
+			std::begin(color_glyph.pixels),
+			std::end(color_glyph.pixels),
+			std::begin(alpha.pixels),
+			[](const rgba<float>& c) { return c.a; });
+
 
 		image<float> shadow(dest_width, dest_height);
 		shadow.copy(alpha, shadow_dy, shadow_dx);
 		shadow *= shadow_opacity;
 
-		shadow.blur(shadow_blur_radius);
+		shadow.gaussian_blur(shadow_blur_radius);
 
-		auto src_shadow = std::begin(shadow.data);
-		auto *dest = pm_pixels;
+		for (size_t i = 0u; i < dest_width*dest_height; i++) {
+			auto s = shadow.pixels[i];
 
-		for (int i = 0; i < dest_width*dest_height; i++) {
-			auto v = *dest;
-			auto s = *src_shadow++;
+			auto& c = color_glyph.pixels[i];
+			auto a = c.a;
 
-			auto c = rgba<unsigned> { v };
-			auto a = static_cast<float>(c.a)/255.f;
+			if (auto da = s*(1.f - a)) {
+				// https://en.wikipedia.org/wiki/Alpha_compositing
 
-			// https://en.wikipedia.org/wiki/Alpha_compositing
-			auto t = a/(a + s*(1.f - a));
-			c.r *= t;
-			c.g *= t;
-			c.b *= t;
+				auto t = a/(a + da);
 
-			a += s*(1.f - a);
-			c.a = static_cast<unsigned>(255.f*a);
+				c.r *= t;
+				c.g *= t;
+				c.b *= t;
 
-			*dest++ = c;
+				c.a += da;
+			}
 		}
 	}
 
@@ -366,5 +245,5 @@ font::render_glyph(
 	const int top = metrics->horiBearingY >> 6;
 	const int advance_x = metrics->horiAdvance >> 6;
 
-	return new glyph(code, left, top, advance_x, pm);
+	return new glyph(code, left, top, advance_x, color_glyph*255.f);
 }

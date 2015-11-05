@@ -7,8 +7,9 @@
 
 #include "panic.h"
 #include "rect.h"
-#include "sprite.h"
+#include "sprite_base.h"
 #include "sprite_packer.h"
+#include "png_util.h"
 
 namespace {
 
@@ -82,42 +83,25 @@ sprite_cmp(sprite_base *a, sprite_base *b)
 }
 
 void
-write_sprite_sheet(pixmap& pm, const node *root)
+write_sprite_sheet(image<rgba<int>>& im, const node *root)
 {
 	if (root->left_) {
-		write_sprite_sheet(pm, root->left_);
-		write_sprite_sheet(pm, root->right_);
+		write_sprite_sheet(im, root->left_);
+		write_sprite_sheet(im, root->right_);
 	} else if (root->sprite_) {
-		const pixmap *child_pm = root->sprite_->pm_.get();
-
-		assert(child_pm->get_pixel_size() == pm.get_pixel_size());
-
-		const size_t pixel_size = pm.get_pixel_size();
-
-		const size_t dest_stride = pm.get_width()*pixel_size;
-		const size_t src_stride = child_pm->get_width()*pixel_size;
-
-		uint8_t *dest_bits =
-			pm.get_bits() +
-			((root->rc_.top_ + root->border_)*pm.get_width() + root->rc_.left_ + root->border_)*pixel_size;
-		const uint8_t *src_bits = child_pm->get_bits();
-
-		for (size_t i = 0; i < child_pm->get_height(); i++) {
-			::memcpy(dest_bits, src_bits, src_stride);
-			dest_bits += dest_stride;
-			src_bits += src_stride;
-		}
+		const auto& child_im = root->sprite_->im_;
+		im.copy(child_im, root->rc_.top_ + root->border_, root->rc_.left_ + root->border_);
 	}
 }
 
 void
-write_sprite_sheet(const std::string& name, pixmap::type color_type, const node *root)
+write_sprite_sheet(const std::string& name, const node *root)
 {
 	assert(root->rc_.top_ == 0 && root->rc_.left_ == 0);
 
-	pixmap pm(root->rc_.width_, root->rc_.height_, color_type);
-	write_sprite_sheet(pm, root);
-	pm.save(name);
+	image<rgba<int>> im(root->rc_.width_, root->rc_.height_);
+	write_sprite_sheet(im, root);
+	png_write(im, name);
 }
 
 } // (anonymous namespace)
@@ -127,7 +111,6 @@ pack_sprites(std::vector<sprite_base *>& sprites,
 		const std::string& sheet_name,
 		int sheet_width, int sheet_height,
 		int border,
-		pixmap::type color_type,
 		const std::string& texture_path_base)
 {
 	const size_t num_sprites = sprites.size();
@@ -183,5 +166,5 @@ pack_sprites(std::vector<sprite_base *>& sprites,
 	}
 
 	// write texture
-	write_sprite_sheet(sheet_name + ".png", color_type, root);
+	write_sprite_sheet(sheet_name + ".png", root);
 }

@@ -4,76 +4,71 @@ template <typename T>
 struct rgba
 {
 	rgba()
-	: r { 0 }, g { 0 }, b { 0 }, a { 0 }
+	: r(0), g(0), b(0), a(0)
 	{ }
 
-	rgba(T r, T g, T b, T a)
-	: r { r }, g { g }, b { b }, a { a }
+	template <typename R, typename G, typename B, typename A>
+	rgba(R r, G g, B b, A a)
+	: r(r), g(g), b(b), a(a)
 	{ }
 
-	rgba(uint32_t v)
-	: r { v & 0xff }
-	, g { (v >> 8) & 0xff }
-	, b { (v >> 16) & 0xff }
-	, a { v >> 24 }
+	template <typename U>
+	rgba(const rgba<U>& rv)
+	: r(rv.r), g(rv.g), b(rv.b), a(rv.a)
 	{ }
 
-	rgba<T>&
-	operator+=(const rgba<T>& o)
+	template <typename U>
+	rgba<T>& operator*=(U rv)
 	{
-		r += o.r;
-		g += o.g;
-		b += o.b;
-		a += o.a;
-
-		return o;
+		r *= rv;
+		g *= rv;
+		b *= rv;
+		a *= rv;
+		return *this;
 	}
 
-	const rgba<T>
-	operator+(const rgba<T>& o) const
+	template <typename U>
+	rgba<T>& operator+=(const rgba<U>& rv)
 	{
-		return rgba<T> { r + o.r, g + o.g, b + o.b, a + o.a };
+		r += rv.r;
+		g += rv.g;
+		b += rv.b;
+		a += rv.a;
+		return *this;
 	}
 
-	rgba<T>&
-	operator-=(const rgba<T>& o)
+	template <typename U>
+	rgba<T>& operator-=(const rgba<U>& rv)
 	{
-		r -= o.r;
-		g -= o.g;
-		b -= o.b;
-		a -= o.a;
-
-		return o;
+		r -= rv.r;
+		g -= rv.g;
+		b -= rv.b;
+		a -= rv.a;
+		return *this;
 	}
 
-	const rgba<T>
-	operator-(const rgba<T>& o) const
-	{
-		return rgba<T> { r - o.r, g - o.g, b - o.b, a - o.a };
-	}
+	template <typename U>
+	friend inline
+	rgba<T> operator*(const rgba<T>& lv, U rv)
+	{ return rgba<T>(lv) *= rv; }
 
-	template <typename S>
-	const rgba<T>
-	operator*(S s) const
-	{
-		return rgba<T> { static_cast<T>(r*s), static_cast<T>(g*s), static_cast<T>(b*s), static_cast<T>(a*s) };
-	}
+	template <typename U>
+	friend inline
+	rgba<T> operator*(U lv, const rgba<T>& rv)
+	{ return rgba<T>(rv) *= lv; }
 
-	operator int32_t() const
-	{
-		return
-			static_cast<int32_t>(r) +
-			(static_cast<int32_t>(g) << 8) +
-			(static_cast<int32_t>(b) << 16) +
-			(static_cast<int32_t>(a) << 24);
-	}
+	template <typename U>
+	friend inline
+	rgba<T> operator+(const rgba<T>& lv, const rgba<U>& rv)
+	{ return rgba<T>(lv) += rv; }
+
+	template <typename U>
+	friend inline
+	rgba<T> operator-(const rgba<T>& lv, const rgba<U>& rv)
+	{ return rgba<T>(lv) -= rv; }
 
 	T r, g, b, a;
 };
 
-template <typename S, typename T>
-const rgba<T>
-operator*(S s, const rgba<T>& c)
-{
-	return rgba<T> { static_cast<T>(c.r*s), static_cast<T>(c.g*s), static_cast<T>(c.b*s), static_cast<T>(c.a*s) };
-}
+using rgbaf = rgba<float>;
+using rgbai = rgba<int>;

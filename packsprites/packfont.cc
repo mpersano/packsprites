@@ -249,6 +249,5 @@ main(int argc, char *argv[])
 			sheet_name,
 			sheet_width, sheet_height,
 			border,
-			pixmap::RGB_ALPHA,
 			texture_path_base.c_str());
 }
