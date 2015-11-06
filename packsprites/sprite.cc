@@ -4,8 +4,8 @@
 
 #include "sprite.h"
 
-sprite::sprite(const char *name, pixmap *pm)
-: sprite_base(pm)
+sprite::sprite(const std::string& name, const image<rgba<int>>& im)
+: sprite_base(im)
 , name_(name)
 { }
 

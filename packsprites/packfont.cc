@@ -214,10 +214,15 @@ main(int argc, char *argv[])
 	const char *font_name = argv[optind];
 	const char *sheet_name = argv[optind + 1];
 
-	std::vector<sprite_base *> sprites;
+	std::vector<std::unique_ptr<sprite_base>> sprites;
 
 	font f(font_name);
+
+	f.set_outline_radius(outline_radius);
 	f.set_char_size(font_size);
+	f.set_shadow_offset(shadow_dx, shadow_dy);
+	f.set_shadow_opacity(shadow_opacity);
+	f.set_shadow_blur_radius(shadow_blur_radius);
 
 	for (int i = optind + 2; i < argc; i++) {
 		char *range = argv[i];
@@ -231,18 +236,8 @@ main(int argc, char *argv[])
 			to = from;
 		}
 
-		for (int j = from; j <= to; j++) {
-			sprites.push_back(
-				f.render_glyph(
-					j,
-					outline_radius,
-					*inner_color.get(),
-					*outline_color.get(),
-					shadow_dx,
-					shadow_dy,
-					shadow_opacity,
-					shadow_blur_radius));
-		}
+		for (int j = from; j <= to; j++)
+			sprites.push_back(f.render_glyph(j, *inner_color.get(), *outline_color.get()));
 	}
 
 	pack_sprites(sprites,

@@ -14,12 +14,12 @@ struct sprite_base
 	virtual ~sprite_base();
 
 	size_t width() const
-	{ return im_.width; }
+	{ return image_.width; }
 
 	size_t height() const
-	{ return im_.height; }
+	{ return image_.height; }
 
 	virtual void serialize(TiXmlElement *el) const = 0;
 
-	image<rgba<int>> im_;
+	image<rgba<int>> image_;
 };

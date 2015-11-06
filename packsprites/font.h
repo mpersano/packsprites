@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
@@ -31,16 +33,20 @@ public:
 	virtual ~font();
 
 	void set_char_size(int size);
+	void set_outline_radius(int v);
+	void set_shadow_offset(int dx, int dy);
+	void set_shadow_opacity(float v);
+	void set_shadow_blur_radius(int v);
 
-	glyph *render_glyph(
+	std::unique_ptr<sprite_base> render_glyph(
 			const wchar_t code,
-			int outline_radius,
 			const color_fn& inner_color,
-			const color_fn& outline_color,
-			int shadow_dx, int shadow_dy,
-			float shadow_opacity,
-			int shadow_blur_radius);
+			const color_fn& outline_color);
 
 private:
 	FT_Face face_;
+	int outline_radius_;
+	int shadow_dx_, shadow_dy_;
+	float shadow_opacity_;
+	int shadow_blur_radius_;
 };

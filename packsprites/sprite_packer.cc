@@ -42,7 +42,7 @@ rect::split_horiz(int r)
 struct node
 {
 	node(const rect& rc)
-	: rc_(rc), border_(0), left_(0), right_(0), sprite_(0)
+	: rc_(rc), border_(0), sprite_(0)
 	{ }
 
 	bool insert_sprite(sprite_base *sp, int border);
@@ -61,8 +61,8 @@ struct node
 
 	rect rc_;
 	int border_;
-	node *left_, *right_;
 	sprite_base *sprite_;
+	std::unique_ptr<node> left_, right_;
 };
 
 bool
@@ -88,12 +88,12 @@ node::insert_sprite(sprite_base *sp, int border)
 
 		if (rc_.width_ - wanted_width > rc_.height_ - wanted_height) {
 			std::pair<rect, rect> child_rect = rc_.split_vert(wanted_width);
-			left_ = new node(child_rect.first);
-			right_ = new node(child_rect.second);
+			left_.reset(new node(child_rect.first));
+			right_.reset(new node(child_rect.second));
 		} else {
 			std::pair<rect, rect> child_rect = rc_.split_horiz(wanted_height);
-			left_ = new node(child_rect.first);
-			right_ = new node(child_rect.second);
+			left_.reset(new node(child_rect.first));
+			right_.reset(new node(child_rect.second));
 		}
 
 		bool rv = left_->insert_sprite(sp, border);
@@ -102,20 +102,14 @@ node::insert_sprite(sprite_base *sp, int border)
 	}
 }
 
-bool
-sprite_cmp(sprite_base *a, sprite_base *b)
-{
-	return b->width()*b->height() < a->width()*a->height();
-}
-
 void
 write_sprite_sheet(image<rgba<int>>& im, const node *root)
 {
 	if (root->left_) {
-		write_sprite_sheet(im, root->left_);
-		write_sprite_sheet(im, root->right_);
+		write_sprite_sheet(im, root->left_.get());
+		write_sprite_sheet(im, root->right_.get());
 	} else if (root->sprite_) {
-		const auto& child_im = root->sprite_->im_;
+		const auto& child_im = root->sprite_->image_;
 		im.copy(child_im, root->rc_.top_ + root->border_, root->rc_.left_ + root->border_);
 	}
 }
@@ -133,7 +127,7 @@ write_sprite_sheet(const std::string& name, const node *root)
 } // (anonymous namespace)
 
 void
-pack_sprites(std::vector<sprite_base *>& sprites,
+pack_sprites(std::vector<std::unique_ptr<sprite_base>>& sprites,
 		const std::string& sheet_name,
 		int sheet_width, int sheet_height,
 		int border,
@@ -141,16 +135,20 @@ pack_sprites(std::vector<sprite_base *>& sprites,
 {
 	const size_t num_sprites = sprites.size();
 
-	std::sort(sprites.begin(), sprites.end(), sprite_cmp);
+	std::sort(
+		std::begin(sprites),
+		std::end(sprites),
+		[](const std::unique_ptr<sprite_base>& a, const std::unique_ptr<sprite_base>& b)
+			{
+				return b->width()*b->height() < a->width()*a->height();
+			});
 
-	node *root = new node(rect(0, 0, sheet_width, sheet_height));
+	std::unique_ptr<node> root { new node(rect(0, 0, sheet_width, sheet_height)) };
 
-	for (auto it = sprites.begin(); it != sprites.end(); it++) {
-		sprite_base *sp = *it;
-
+	for (auto& sp : sprites) {
 		assert(sp->width() <= sheet_width && sp->height() <= sheet_height);
 
-		if (!root->insert_sprite(sp, border))
+		if (!root->insert_sprite(sp.get(), border))
 			panic("sprite sheet too small!\n");
 	}
 
@@ -159,7 +157,7 @@ pack_sprites(std::vector<sprite_base *>& sprites,
 	{
 	TiXmlDocument doc;
 
-	auto* decl = new TiXmlDeclaration( "1.0", "", "" );
+	auto *decl = new TiXmlDeclaration( "1.0", "", "" );
 	doc.LinkEndChild(decl);
 
 	auto *spritesheet = new TiXmlElement("spritesheet");
@@ -192,5 +190,5 @@ pack_sprites(std::vector<sprite_base *>& sprites,
 	}
 
 	// write texture
-	write_sprite_sheet(sheet_name + ".png", root);
+	write_sprite_sheet(sheet_name + ".png", root.get());
 }

@@ -6,7 +6,7 @@
 
 struct sprite : sprite_base
 {
-	sprite(const char *name, pixmap *pm);
+	sprite(const std::string& name, const image<rgba<int>>& im);
 
 	void serialize(TiXmlElement *el) const override;
 

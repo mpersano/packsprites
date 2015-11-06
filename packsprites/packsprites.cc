@@ -9,39 +9,14 @@
 
 #include <vector>
 
-#include "pixmap.h"
 #include "sprite.h"
 #include "sprite_packer.h"
+#include "png_util.h"
 #include "panic.h"
 
-static std::vector<sprite_base *> sprites;
-
-static void
-load_sprites(const char *dir_name)
-{
-	DIR *dir;
-
-	if ((dir = opendir(dir_name)) == NULL)
-		panic("failed to open %s: %s\n", dir_name, strerror(errno));
-
-	dirent *de;
-
-	while ((de = readdir(dir)) != NULL) {
-		const char *name = de->d_name;
-		size_t len = strlen(name);
-
-		if (len >= 4 && !strcmp(name + len - 4, ".png")) {
-			char path[PATH_MAX];
-			sprintf(path, "%s/%s", dir_name, name);
-
-			sprite *sp = new sprite(name, new pixmap(path));
-			fprintf(stderr, "%s: %ux%u\n", name, sp->width(), sp->height());
-			sprites.push_back(sp);
-		}
-	}
-
-	closedir(dir);
+namespace {
 }
+
 
 static void
 usage(const char *argv0)
@@ -92,12 +67,31 @@ main(int argc, char *argv[])
 	const char *sheet_name = argv[optind];
 	const char *dir_name = argv[optind + 1];
 
-	load_sprites(dir_name);
+	std::vector<std::unique_ptr<sprite_base>> sprites;
+
+	{
+	DIR *dir = opendir(dir_name);
+
+	if (!dir)
+		panic("failed to open %s: %s\n", dir_name, strerror(errno));
+
+	while (dirent *de = readdir(dir)) {
+		const char *name = de->d_name;
+		size_t len = strlen(name);
+
+		if (len >= 4 && !strcmp(name + len - 4, ".png")) {
+			char path[PATH_MAX];
+			sprintf(path, "%s/%s", dir_name, name);
+			sprites.push_back(std::unique_ptr<sprite_base> { new sprite(name, png_read(path)) });
+		}
+	}
+
+	closedir(dir);
+	}
 
 	pack_sprites(sprites,
 			sheet_name,
 			sheet_width, sheet_height,
 			border,
-			pixmap::RGB_ALPHA,
 			texture_path_base.c_str());
 }

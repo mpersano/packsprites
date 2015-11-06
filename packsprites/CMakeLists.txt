@@ -21,10 +21,10 @@ target_link_libraries(
 	${PNG_LIBRARIES}
 	${TinyXML_LIBRARY})
 
-# add_executable(packsprites packsprites.cc sprite.cc ${COMMON_SOURCES})
-# 
-# target_link_libraries(
-# 	packsprites
-# 	${FREETYPE_LIBRARIES}
-# 	${PNG_LIBRARIES}
-# 	${TinyXML_LIBRARY})
+add_executable(packsprites packsprites.cc sprite.cc ${COMMON_SOURCES})
+
+target_link_libraries(
+	packsprites
+	${FREETYPE_LIBRARIES}
+	${PNG_LIBRARIES}
+	${TinyXML_LIBRARY})

@@ -110,6 +110,11 @@ ft_library::get_instance()
 }
 
 font::font(const char *path)
+: outline_radius_ { 2 }
+, shadow_dx_ { 0 }
+, shadow_dy_ { 0 }
+, shadow_opacity_ { .2 }
+, shadow_blur_radius_ { 0 }
 {
 	if (FT_New_Face(ft_library::get_instance(), path, 0, &face_) != 0)
 		panic("FT_New_Face");
@@ -127,15 +132,36 @@ font::set_char_size(int size)
 		panic("FT_Set_Char_Size");
 }
 
-glyph *
+void
+font::set_outline_radius(int v)
+{
+	outline_radius_ = v;
+}
+
+void
+font::set_shadow_offset(int dx, int dy)
+{
+	shadow_dx_ = dx;
+	shadow_dy_ = dy;
+}
+
+void
+font::set_shadow_opacity(float v)
+{
+	shadow_opacity_ = v;
+}
+
+void
+font::set_shadow_blur_radius(int v)
+{
+	shadow_blur_radius_ = v;
+}
+
+std::unique_ptr<sprite_base>
 font::render_glyph(
 		wchar_t code,
-		int outline_radius,
 		const color_fn& inner_color,
-		const color_fn& outline_color,
-		int shadow_dx, int shadow_dy,
-		float shadow_opacity,
-		int shadow_blur_radius)
+		const color_fn& outline_color)
 {
 	if ((FT_Load_Char(face_, code, FT_LOAD_RENDER)) != 0)
 		panic("FT_Load_Char");
@@ -149,24 +175,24 @@ font::render_glyph(
 
 	// figure out final size
 
-	int dest_height = src_height + 2*outline_radius;
-	int dest_width = src_width + 2*outline_radius;
+	int dest_height = src_height + 2*outline_radius_;
+	int dest_width = src_width + 2*outline_radius_;
 
-	int offset_x = outline_radius;
-	int offset_y = outline_radius;
+	int offset_x = outline_radius_;
+	int offset_y = outline_radius_;
 
-	if (shadow_dx < 0) {
-		dest_width += -shadow_dx + shadow_blur_radius;
-		offset_x += -shadow_dx + shadow_blur_radius;
-	} else if (shadow_dx > 0) {
-		dest_width += shadow_dx + shadow_blur_radius;
+	if (shadow_dx_ < 0) {
+		dest_width += -shadow_dx_ + shadow_blur_radius_;
+		offset_x += -shadow_dx_ + shadow_blur_radius_;
+	} else if (shadow_dx_ > 0) {
+		dest_width += shadow_dx_ + shadow_blur_radius_;
 	}
 
-	if (shadow_dy < 0) {
-		dest_height += -shadow_dy + shadow_blur_radius;
-		offset_y += -shadow_dy + shadow_blur_radius;
-	} else if (shadow_dy > 0) {
-		dest_height += shadow_dy + shadow_blur_radius;
+	if (shadow_dy_ < 0) {
+		dest_height += -shadow_dy_ + shadow_blur_radius_;
+		offset_y += -shadow_dy_ + shadow_blur_radius_;
+	} else if (shadow_dy_ > 0) {
+		dest_height += shadow_dy_ + shadow_blur_radius_;
 	}
 
 	// copy grayscale channel
@@ -179,7 +205,7 @@ font::render_glyph(
 
 	// create outline with dilation morphological filter
 
-	image<float> outline = dilate(lum, outline_radius);
+	image<float> outline = dilate(lum, outline_radius_);
 
 	// add some happy colors
 
@@ -204,7 +230,7 @@ font::render_glyph(
 
 	// drop shadow
 
-	if (shadow_dx || shadow_dy || shadow_blur_radius) {
+	if (shadow_dx_ || shadow_dy_ || shadow_blur_radius_) {
 		image<float> alpha(dest_width, dest_height);
 		std::transform(
 			std::begin(color_glyph.pixels),
@@ -214,10 +240,10 @@ font::render_glyph(
 
 
 		image<float> shadow(dest_width, dest_height);
-		shadow.copy(alpha, shadow_dy, shadow_dx);
-		shadow *= shadow_opacity;
+		shadow.copy(alpha, shadow_dy_, shadow_dx_);
+		shadow *= shadow_opacity_;
 
-		shadow.gaussian_blur(shadow_blur_radius);
+		shadow.gaussian_blur(shadow_blur_radius_);
 
 		for (size_t i = 0u; i < dest_width*dest_height; i++) {
 			auto s = shadow.pixels[i];
@@ -244,5 +270,5 @@ font::render_glyph(
 	const int top = metrics->horiBearingY >> 6;
 	const int advance_x = metrics->horiAdvance >> 6;
 
-	return new glyph(code, left, top, advance_x, color_glyph*255.f);
+	return std::unique_ptr<sprite_base> { new glyph { code, left, top, advance_x, color_glyph*255.f } };
 }
