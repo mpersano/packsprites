@@ -62,7 +62,7 @@ dilate(const image<T>& im, int radius)
 
 } // (anonymous namespace)
 
-glyph::glyph(wchar_t code, int left, int top, int advance_x, image<rgba<int>> im)
+glyph::glyph(wchar_t code, int left, int top, int advance_x, const image<rgba<int>>& im)
 : sprite_base(im)
 , code_(code)
 , left_(left)
