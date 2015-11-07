@@ -8,7 +8,7 @@ The font packer can also add simple effects like outlines, gradients and drop sh
 
 ![sample](/sample.png?raw=true "sample")
 
-    ./packfont -w 600 -h 256 -s 36 -g 3 -d 2 -e 2 -B 2 -S .4 -i ffff00-ffffff-ff0000 -o 8f0000-3f3f00 DejaVuSans.ttf sample x61-x7a x41-x5a x30-x39
+    ./packfont -w 600 -h 256 -s 36 -g 3 -d 2 -e 2 -B 2 -S .4 -i ffffff00-ffffffff-ffff0000 -o ff8f0000-ff3f3f00 DejaVuSans.ttf sample x61-x7a x41-x5a x30-x39
 
 ## usage
 
