@@ -19,58 +19,6 @@
 
 namespace {
 
-class flat_color_fn : public color_fn
-{
-public:
-	flat_color_fn(const rgba<int>& color)
-	: color_(color)
-	{ }
-
-	rgba<int> operator()(float t) const override
-	{ return color_; }
-
-private:
-	rgba<int> color_;
-};
-
-// lame linear gradient
-
-class gradient_color_fn : public color_fn
-{
-public:
-	gradient_color_fn(const rgba<int>& from, const rgba<int>& to)
-	: from_(from), to_(to)
-	{ }
-
-	rgba<int> operator()(float t) const override
-	{ return from_ + (to_ - from_)*t; }
-
-private:
-	rgba<int> from_, to_;
-};
-
-// quadratic bezier gradient
-
-class bezier_color_fn : public color_fn
-{
-public:
-	bezier_color_fn(const rgba<int>& c0, const rgba<int>& c1, const rgba<int>& c2)
-	: c0_(c0), c1_(c1), c2_(c2)
-	{ }
-
-	rgba<int> operator()(float u) const override
-	{
-		const float w0 = (1 - u)*(1 - u);
-		const float w1 = 2*u*(1 - u);
-		const float w2 = u*u;
-
-		return c0_*w0 + c1_*w1 + c2_*w2;
-	}
-
-private:
-	rgba<int> c0_, c1_, c2_;
-};
-
 void
 usage(const char *argv0)
 {
@@ -106,32 +54,33 @@ parse_color(const char *str)
 	return c;
 }
 
-std::unique_ptr<color_fn>
-parse_color_fn(char *str)
+color_fn
+parse_color_fn(const char *str)
 {
-	if (char *p = strchr(str, '-')) {
-		*p = '\0';
+	auto c0 = parse_color(str);
 
-		if (char *q = strchr(p + 1, '-')) {
-			*q = '\0';
+	if (const char *p = strchr(str, '-')) {
+		auto c1 = parse_color(p + 1);
 
-			return std::unique_ptr<color_fn>
+		if (const char *q = strchr(p + 1, '-')) {
+			auto c2 = parse_color(q + 1);
+
+			// quadratic bezier gradient
+			return [=](float u)
 				{
-					new bezier_color_fn {
-						parse_color(str),
-						parse_color(p + 1),
-						parse_color(q + 1) }
+					const float w0 = (1 - u)*(1 - u);
+					const float w1 = 2*u*(1 - u);
+					const float w2 = u*u;
+
+					return c0*w0 + c1*w1 + c2*w2;
 				};
 		} else {
-			return std::unique_ptr<color_fn>
-				{
-					new gradient_color_fn {
-						parse_color(str),
-						parse_color(p + 1) }
-				};
+			// lame linear gradient
+			return [=](float u) { return c0*(1.f - u) + c1*u; };
 		}
 	} else {
-		return std::unique_ptr<color_fn> { new flat_color_fn { parse_color(str) } };
+		// flat color
+		return [=](float) { return c0; };
 	}
 }
 
@@ -145,14 +94,13 @@ main(int argc, char *argv[])
 	int sheet_width = 256;
 	int sheet_height = 256;
 	int outline_radius = 2;
+	color_fn inner_color_fn { [](float) { return rgba<int> { 255, 255, 255, 255 }; } };
+	color_fn outer_color_fn { [](float) { return rgba<int> { 0, 0, 0, 255 }; } };
 	int shadow_dx = 0;
 	int shadow_dy = 0;
 	float shadow_opacity = .2;
 	int shadow_blur_radius = 0;
 	std::string texture_path_base = ".";
-
-	std::unique_ptr<color_fn> inner_color { new flat_color_fn { rgba<int> { 255, 255, 255, 255 } } };
-	std::unique_ptr<color_fn> outline_color { new flat_color_fn { rgba<int> { 0, 0, 0, 255 } } };
 
 	int c;
 
@@ -183,11 +131,11 @@ main(int argc, char *argv[])
 				break;
 
 			case 'i':
-				inner_color = std::move(parse_color_fn(optarg));
+				inner_color_fn = parse_color_fn(optarg);
 				break;
 
 			case 'o':
-				outline_color = std::move(parse_color_fn(optarg));
+				outer_color_fn = parse_color_fn(optarg);
 				break;
 
 			case 'S':
@@ -219,7 +167,12 @@ main(int argc, char *argv[])
 	font f(font_name);
 
 	f.set_outline_radius(outline_radius);
+
 	f.set_char_size(font_size);
+
+	f.set_inner_color_fn(inner_color_fn);
+	f.set_outer_color_fn(outer_color_fn);
+
 	f.set_shadow_offset(shadow_dx, shadow_dy);
 	f.set_shadow_opacity(shadow_opacity);
 	f.set_shadow_blur_radius(shadow_blur_radius);
@@ -237,7 +190,7 @@ main(int argc, char *argv[])
 		}
 
 		for (int j = from; j <= to; j++)
-			sprites.push_back(f.render_glyph(j, *inner_color.get(), *outline_color.get()));
+			sprites.push_back(f.render_glyph(j));
 	}
 
 	pack_sprites(sprites,

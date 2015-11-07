@@ -111,6 +111,8 @@ ft_library::get_instance()
 
 font::font(const char *path)
 : outline_radius_ { 2 }
+, inner_color_fn_ { [](float) { return rgba<int> { 255, 255, 255, 255 }; } }
+, outer_color_fn_ { [](float) { return rgba<int> { 0, 0, 0, 255 }; } }
 , shadow_dx_ { 0 }
 , shadow_dy_ { 0 }
 , shadow_opacity_ { .2 }
@@ -139,6 +141,18 @@ font::set_outline_radius(int v)
 }
 
 void
+font::set_inner_color_fn(const color_fn& fn)
+{
+	inner_color_fn_ = fn;
+}
+
+void
+font::set_outer_color_fn(const color_fn& fn)
+{
+	outer_color_fn_ = fn;
+}
+
+void
 font::set_shadow_offset(int dx, int dy)
 {
 	shadow_dx_ = dx;
@@ -158,10 +172,7 @@ font::set_shadow_blur_radius(int v)
 }
 
 std::unique_ptr<sprite_base>
-font::render_glyph(
-		wchar_t code,
-		const color_fn& inner_color,
-		const color_fn& outline_color)
+font::render_glyph(wchar_t code)
 {
 	if ((FT_Load_Char(face_, code, FT_LOAD_RENDER)) != 0)
 		panic("FT_Load_Char");
@@ -215,8 +226,8 @@ font::render_glyph(
 		const float t = static_cast<float>(i)/dest_height; // XXX: should sub outline radius for inner color
 
 		const float f = 1.f/255;
-		auto c0 = rgba<float>(inner_color(t))*f;
-		auto c1 = rgba<float>(outline_color(t))*f;
+		auto c0 = rgba<float>(inner_color_fn_(t))*f;
+		auto c1 = rgba<float>(outer_color_fn_(t))*f;
 
 		for (int j = 0; j < dest_width; j++) {
 			auto l = lum(i, j);
