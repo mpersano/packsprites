@@ -174,10 +174,20 @@ font::set_shadow_blur_radius(int v)
 std::unique_ptr<sprite_base>
 font::render_glyph(wchar_t code)
 {
+	const auto& bbox = face_->bbox;
+
+	const auto y_min = bbox.yMin >> 6;
+	const auto y_max = bbox.yMax >> 6;
+
 	if ((FT_Load_Char(face_, code, FT_LOAD_RENDER)) != 0)
 		panic("FT_Load_Char");
 
 	FT_GlyphSlot slot = face_->glyph;
+
+	const FT_Glyph_Metrics *metrics = &slot->metrics;
+	const int left = metrics->horiBearingX >> 6;
+	const int top = metrics->horiBearingY >> 6;
+	const int advance_x = metrics->horiAdvance >> 6;
 
 	FT_Bitmap *bitmap = &slot->bitmap;
 
@@ -223,7 +233,16 @@ font::render_glyph(wchar_t code)
 	image<rgba<float>> color_glyph(dest_width, dest_height);
 
 	for (int i = 0; i < dest_height; i++) {
-		const float t = static_cast<float>(i)/dest_height; // XXX: should sub outline radius for inner color
+		const int y = (dest_height - 1 - i) - offset_y - (src_height - top);
+
+		float t;
+
+		if (y < y_min)
+			t = 0;
+		else if (y < y_max)
+			t = static_cast<float>(y - y_min)/(y_max - y_min);
+		else
+			t = 1;
 
 		const float f = 1.f/255;
 		auto c0 = rgba<float>(inner_color_fn_(t))*f;
@@ -275,11 +294,6 @@ font::render_glyph(wchar_t code)
 			}
 		}
 	}
-
-	const FT_Glyph_Metrics *metrics = &slot->metrics;
-	const int left = metrics->horiBearingX >> 6;
-	const int top = metrics->horiBearingY >> 6;
-	const int advance_x = metrics->horiAdvance >> 6;
 
 	return std::unique_ptr<sprite_base> { new glyph { code, left, top, advance_x, color_glyph*255.f } };
 }
