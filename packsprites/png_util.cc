@@ -67,8 +67,7 @@ png_write(const rgba_image&im, const std::string& path)
 		auto it = std::begin(row);
 
 		for (size_t j = 0; j < im.width; j++) {
-			const auto& c = im(i, j);
-
+			rgba<int> c { im(i, j) };
 			*it++ = c.r;
 			*it++ = c.g;
 			*it++ = c.b;
@@ -83,7 +82,7 @@ png_write(const rgba_image&im, const std::string& path)
 	png_destroy_write_struct(&png_ptr, &info_ptr);
 }
 
-rgba_image
+rgba_image_ptr
 png_read(const std::string& path)
 {
 	file f { path, "rb" };
@@ -113,13 +112,13 @@ png_read(const std::string& path)
 	auto width = png_get_image_width(png_ptr, info_ptr);
 	auto height = png_get_image_height(png_ptr, info_ptr);
 
-	rgba_image im(width, height);
+	rgba_image_ptr im { new rgba_image { width, height } };
 
 	png_bytep *rows = png_get_rows(png_ptr, info_ptr);
 
 	for (size_t i = 0; i < height; i++) {
 		auto src = rows[i];
-		auto dest = &im(i, 0);
+		auto dest = &(*im)(i, 0);
 
 		for (size_t j = 0; j < width; j++) {
 			*dest++ = rgba<int>(src[0], src[1], src[2], src[3]);

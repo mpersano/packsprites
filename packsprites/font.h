@@ -10,7 +10,7 @@
 
 struct glyph : sprite_base
 {
-	glyph(wchar_t code, int left, int top, int advance_x, const image<rgba<int>>& im);
+	glyph(wchar_t code, int left, int top, int advance_x, std::unique_ptr<image<uint32_t>> im);
 
 	void serialize(TiXmlElement *el) const override;
 

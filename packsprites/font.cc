@@ -62,12 +62,12 @@ dilate(const image<T>& im, int radius)
 
 } // (anonymous namespace)
 
-glyph::glyph(wchar_t code, int left, int top, int advance_x, const image<rgba<int>>& im)
-: sprite_base(im)
-, code_(code)
-, left_(left)
-, top_(top)
-, advance_x_(advance_x)
+glyph::glyph(wchar_t code, int left, int top, int advance_x, std::unique_ptr<image<uint32_t>> im)
+: sprite_base { std::move(im) }
+, code_ { code }
+, left_ { left }
+, top_ { top }
+, advance_x_ { advance_x }
 { }
 
 void
@@ -295,5 +295,6 @@ font::render_glyph(wchar_t code)
 		}
 	}
 
-	return std::unique_ptr<sprite_base> { new glyph { code, left, top, advance_x, color_glyph*255.f } };
+	std::unique_ptr<image<uint32_t>> im { new image<uint32_t> { color_glyph*255.f } };
+	return std::unique_ptr<sprite_base> { new glyph { code, left, top, advance_x, std::move(im) } };
 }

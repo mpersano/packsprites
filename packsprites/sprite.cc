@@ -4,9 +4,9 @@
 
 #include "sprite.h"
 
-sprite::sprite(const std::string& name, const image<rgba<int>>& im)
-: sprite_base(im)
-, name_(name)
+sprite::sprite(const std::string& name, std::unique_ptr<image<uint32_t>> im)
+: sprite_base { std::move(im) }
+, name_ { name }
 { }
 
 void

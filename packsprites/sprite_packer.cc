@@ -103,14 +103,14 @@ node::insert_sprite(sprite_base *sp, int border)
 }
 
 void
-write_sprite_sheet(image<rgba<int>>& im, const node *root)
+write_sprite_sheet(image<uint32_t>& im, const node *root)
 {
 	if (root->left_) {
 		write_sprite_sheet(im, root->left_.get());
 		write_sprite_sheet(im, root->right_.get());
 	} else if (root->sprite_) {
 		const auto& child_im = root->sprite_->image_;
-		im.copy(child_im, root->rc_.top_ + root->border_, root->rc_.left_ + root->border_);
+		im.copy(*child_im, root->rc_.top_ + root->border_, root->rc_.left_ + root->border_);
 	}
 }
 
@@ -119,7 +119,7 @@ write_sprite_sheet(const std::string& name, const node *root)
 {
 	assert(root->rc_.top_ == 0 && root->rc_.left_ == 0);
 
-	image<rgba<int>> im(root->rc_.width_, root->rc_.height_);
+	image<uint32_t> im(root->rc_.width_, root->rc_.height_);
 	write_sprite_sheet(im, root);
 	png_write(im, name);
 }

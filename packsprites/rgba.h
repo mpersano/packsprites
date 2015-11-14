@@ -108,6 +108,22 @@ struct rgba : vec_ops<rgba, T>
 	: r(v.r), g(v.g), b(v.b), a(a)
 	{ }
 
+	// unpacking
+
+	rgba(uint32_t v)
+	: r { static_cast<T>(v & 0xff) }
+	, g { static_cast<T>((v >> 8) & 0xff) }
+	, b { static_cast<T>((v >> 16) & 0xff) }
+	, a { static_cast<T>(v >> 24) }
+	{ }
+
+	// packing
+
+	operator uint32_t() const
+	{
+		return static_cast<uint32_t>(r) | (static_cast<uint32_t>(g) << 8) | (static_cast<uint32_t>(b) << 16) | (static_cast<uint32_t>(a) << 24);
+	}
+
 	const T& operator[](size_t i) const
 	{
 		return v[i];
