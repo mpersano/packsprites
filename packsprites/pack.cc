@@ -48,18 +48,6 @@ struct node
 
 	bool insert(const sprite_base *sp, int border);
 
-	template <typename F>
-	void for_each_sprite(F f)
-	{
-		if (left_) {
-			left_->for_each_sprite(f);
-			assert(right_);
-			right_->for_each_sprite(f);
-		} else if (sprite_) {
-			f(rc_, border_, sprite_);
-		}
-	}
-
 	rect rc_;
 	int border_;
 	const sprite_base *sprite_;
@@ -195,9 +183,9 @@ pack(const std::vector<std::unique_ptr<sprite_base>>& sprites,
 	auto textures_node = new TiXmlElement("textures");
 
 	for (size_t i = 0; i < trees.size(); i++) {
-		auto t = new TiXmlElement("texture");
-		t->SetAttribute("path", texture_name(i));
-		textures_node->LinkEndChild(t);
+		auto el = new TiXmlElement("texture");
+		el->SetAttribute("path", texture_name(i));
+		textures_node->LinkEndChild(el);
 	}
 
 	spritesheet_node->LinkEndChild(textures_node);
@@ -205,23 +193,32 @@ pack(const std::vector<std::unique_ptr<sprite_base>>& sprites,
 	auto sprites_node = new TiXmlElement("sprites");
 
 	for (size_t i = 0; i < trees.size(); i++) {
-		auto& tree = trees[i];
-
-		tree->for_each_sprite(
-			[&] (const rect& rc, int border, const sprite_base *sp)
+		std::function<void(node *)> serialize_sprites = [&](const node *root)
 			{
-				auto *el = new TiXmlElement("sprite");
+				if (root->left_) {
+					serialize_sprites(root->left_.get());
+					assert(root->right_);
+					serialize_sprites(root->right_.get());
+				} else if (root->sprite_) {
+					auto& rc = root->rc_;
+					auto border = root->border_;
+					auto sp = root->sprite_;
 
-				el->SetAttribute("x", rc.left_ + border);
-				el->SetAttribute("y", rc.top_ + border);
-				el->SetAttribute("w", sp->width());
-				el->SetAttribute("h", sp->height());
-				el->SetAttribute("tex", i);
+					auto *el = new TiXmlElement("sprite");
 
-				sp->serialize(el);
+					el->SetAttribute("x", rc.left_ + border);
+					el->SetAttribute("y", rc.top_ + border);
+					el->SetAttribute("w", sp->width());
+					el->SetAttribute("h", sp->height());
+					el->SetAttribute("tex", i);
 
-				sprites_node->LinkEndChild(el);
-			});
+					sp->serialize(el);
+
+					sprites_node->LinkEndChild(el);
+				}
+			};
+
+		serialize_sprites(trees[i].get());
 	}
 
 	spritesheet_node->LinkEndChild(sprites_node);
