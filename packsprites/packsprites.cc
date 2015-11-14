@@ -14,10 +14,6 @@
 #include "png_util.h"
 #include "panic.h"
 
-namespace {
-}
-
-
 static void
 usage(const char *argv0)
 {
