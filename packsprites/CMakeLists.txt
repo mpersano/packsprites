@@ -10,8 +10,8 @@ include_directories(
 set(COMMON_SOURCES
 	panic.cc
 	sprite_base.cc
-	sprite_packer.cc
-	png_util.cc)
+	png_util.cc
+	pack.cc)
 
 add_executable(packfont packfont.cc font.cc ${COMMON_SOURCES})
 

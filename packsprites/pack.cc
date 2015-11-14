@@ -1,15 +1,16 @@
 #include <cassert>
 #include <cstring>
 #include <utility>
+#include <sstream>
 
 #include <algorithm>
 
 #include <tinyxml.h>
 
-#include "panic.h"
 #include "sprite_base.h"
-#include "sprite_packer.h"
 #include "png_util.h"
+#include "panic.h"
+#include "pack.h"
 
 namespace {
 
@@ -45,7 +46,7 @@ struct node
 	: rc_(rc), border_(0), sprite_(0)
 	{ }
 
-	bool insert_sprite(sprite_base *sp, int border);
+	bool insert(const sprite_base *sp, int border);
 
 	template <typename F>
 	void for_each_sprite(F f)
@@ -61,16 +62,16 @@ struct node
 
 	rect rc_;
 	int border_;
-	sprite_base *sprite_;
+	const sprite_base *sprite_;
 	std::unique_ptr<node> left_, right_;
 };
 
 bool
-node::insert_sprite(sprite_base *sp, int border)
+node::insert(const sprite_base *sp, int border)
 {
 	if (left_ != NULL) {
 		// not a leaf
-		return left_->insert_sprite(sp, border) || right_->insert_sprite(sp, border);
+		return left_->insert(sp, border) || right_->insert(sp, border);
 	} else {
 		const int wanted_width = sp->width() + 2*border;
 		const int wanted_height = sp->height() + 2*border;
@@ -96,7 +97,7 @@ node::insert_sprite(sprite_base *sp, int border)
 			right_.reset(new node(child_rect.second));
 		}
 
-		bool rv = left_->insert_sprite(sp, border);
+		bool rv = left_->insert(sp, border);
 		assert(rv);
 		return rv;
 	}
@@ -127,68 +128,103 @@ write_sprite_sheet(const std::string& name, const node *root)
 } // (anonymous namespace)
 
 void
-pack_sprites(std::vector<std::unique_ptr<sprite_base>>& sprites,
+pack(const std::vector<std::unique_ptr<sprite_base>>& sprites,
 		const std::string& sheet_name,
 		int sheet_width, int sheet_height,
 		int border,
 		const std::string& texture_path_base)
 {
-	const size_t num_sprites = sprites.size();
+	// pack
 
-	std::sort(
+	std::vector<const sprite_base *> sorted_sprites;
+	sorted_sprites.reserve(sprites.size());
+
+	std::transform(
 		std::begin(sprites),
 		std::end(sprites),
-		[](const std::unique_ptr<sprite_base>& a, const std::unique_ptr<sprite_base>& b)
+		std::back_inserter(sorted_sprites),
+		[](const std::unique_ptr<sprite_base>& p) { return p.get(); });
+
+	std::vector<std::unique_ptr<node>> trees;
+
+	while (!sorted_sprites.empty()) {
+		std::sort(
+			std::begin(sorted_sprites),
+			std::end(sorted_sprites),
+			[](const sprite_base *a, const sprite_base *b)
 			{
 				return b->width()*b->height() < a->width()*a->height();
 			});
 
-	std::unique_ptr<node> root { new node(rect(0, 0, sheet_width, sheet_height)) };
+		auto tree = new node { rect { 0, 0, sheet_width, sheet_height } };
 
-	for (auto& sp : sprites) {
-		assert(sp->width() <= sheet_width && sp->height() <= sheet_height);
+		auto it = std::begin(sorted_sprites);
 
-		if (!root->insert_sprite(sp.get(), border))
-			panic("sprite sheet too small!\n");
+		while (it != std::end(sorted_sprites)) {
+			if (tree->insert(*it, border))
+				it = sorted_sprites.erase(it);
+			else
+				++it;
+		}
+
+		trees.emplace_back(tree);
 	}
+
+	auto texture_name = [&](size_t i)
+		{
+			std::stringstream ss;
+			ss << texture_path_base << "/" << sheet_name << "." << i << ".png";
+			return ss.str();
+		};
+
+	// write textures
+
+	for (size_t i = 0; i < trees.size(); i++)
+		write_sprite_sheet(texture_name(i), trees[i].get());
 
 	// write sprite sheets
 
-	{
 	TiXmlDocument doc;
 
-	auto *decl = new TiXmlDeclaration( "1.0", "", "" );
+	auto decl = new TiXmlDeclaration( "1.0", "", "" );
 	doc.LinkEndChild(decl);
 
-	auto *spritesheet = new TiXmlElement("spritesheet");
-	doc.LinkEndChild(spritesheet);
+	auto spritesheet_node = new TiXmlElement("spritesheet");
+	doc.LinkEndChild(spritesheet_node);
 
-	auto *texture = new TiXmlElement("texture");
-	texture->SetAttribute("path", texture_path_base + "/" + sheet_name + ".png");
-	spritesheet->LinkEndChild(texture);
+	auto textures_node = new TiXmlElement("textures");
 
-	auto *sprites = new TiXmlElement("sprites");
-
-	root->for_each_sprite(
-		[&] (const rect& rc, int border, const sprite_base *sp)
-		{
-			auto *el = new TiXmlElement("sprite");
-
-			el->SetAttribute("x", rc.left_ + border);
-			el->SetAttribute("y", rc.top_ + border);
-			el->SetAttribute("w", sp->width());
-			el->SetAttribute("h", sp->height());
-
-			sp->serialize(el);
-
-			sprites->LinkEndChild(el);
-		});
-
-	spritesheet->LinkEndChild(sprites);
-
-	doc.SaveFile(std::string(sheet_name) + ".spr");
+	for (size_t i = 0; i < trees.size(); i++) {
+		auto t = new TiXmlElement("texture");
+		t->SetAttribute("path", texture_name(i));
+		textures_node->LinkEndChild(t);
 	}
 
-	// write texture
-	write_sprite_sheet(sheet_name + ".png", root.get());
+	spritesheet_node->LinkEndChild(textures_node);
+
+	auto sprites_node = new TiXmlElement("sprites");
+
+	for (size_t i = 0; i < trees.size(); i++) {
+		auto& tree = trees[i];
+
+		tree->for_each_sprite(
+			[&] (const rect& rc, int border, const sprite_base *sp)
+			{
+				auto *el = new TiXmlElement("sprite");
+
+				el->SetAttribute("x", rc.left_ + border);
+				el->SetAttribute("y", rc.top_ + border);
+				el->SetAttribute("w", sp->width());
+				el->SetAttribute("h", sp->height());
+				el->SetAttribute("tex", i);
+
+				sp->serialize(el);
+
+				sprites_node->LinkEndChild(el);
+			});
+	}
+
+	spritesheet_node->LinkEndChild(sprites_node);
+
+	doc.SaveFile(std::string(sheet_name) + ".spr");
 }

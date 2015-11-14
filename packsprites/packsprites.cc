@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "sprite.h"
-#include "sprite_packer.h"
+#include "pack.h"
 #include "png_util.h"
 #include "panic.h"
 
@@ -86,9 +86,9 @@ main(int argc, char *argv[])
 		closedir(dir);
 	}
 
-	pack_sprites(sprites,
-			sheet_name,
-			sheet_width, sheet_height,
-			border,
-			texture_path_base.c_str());
+	pack(sprites,
+		sheet_name,
+		sheet_width, sheet_height,
+		border,
+		texture_path_base.c_str());
 }

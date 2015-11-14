@@ -14,7 +14,7 @@
 #include <algorithm>
 
 #include "font.h"
-#include "sprite_packer.h"
+#include "pack.h"
 #include "panic.h"
 
 namespace {
@@ -193,9 +193,9 @@ main(int argc, char *argv[])
 			sprites.push_back(f.render_glyph(j));
 	}
 
-	pack_sprites(sprites,
-			sheet_name,
-			sheet_width, sheet_height,
-			border,
-			texture_path_base.c_str());
+	pack(sprites,
+		sheet_name,
+		sheet_width, sheet_height,
+		border,
+		texture_path_base.c_str());
 }
