@@ -11,8 +11,9 @@ struct file {
 	file(const std::string& path, const std::string& mode)
 	: s { fopen(path.c_str(), mode.c_str()) }
 	{
-		if (!s)
-			panic("fopen %s for write failed: %s", strerror(errno));
+		if (!s) {
+			panic("fopen %s for write failed: %s", path.c_str(), strerror(errno));
+		}
 	}
 
 	~file()

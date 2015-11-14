@@ -161,7 +161,7 @@ pack(const std::vector<std::unique_ptr<sprite_base>>& sprites,
 	auto texture_name = [&](size_t i)
 		{
 			std::stringstream ss;
-			ss << texture_path_base << "/" << sheet_name << "." << i << ".png";
+			ss << sheet_name << "." << i << ".png";
 			return ss.str();
 		};
 
@@ -184,7 +184,7 @@ pack(const std::vector<std::unique_ptr<sprite_base>>& sprites,
 
 	for (size_t i = 0; i < trees.size(); i++) {
 		auto el = new TiXmlElement("texture");
-		el->SetAttribute("path", texture_name(i));
+		el->SetAttribute("path", texture_path_base + "/" + texture_name(i));
 		textures_node->LinkEndChild(el);
 	}
 
