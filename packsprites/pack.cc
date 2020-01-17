@@ -2,7 +2,7 @@
 #include <cstring>
 #include <utility>
 #include <sstream>
-
+#include <functional>
 #include <algorithm>
 
 #include <tinyxml.h>

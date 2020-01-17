@@ -48,7 +48,7 @@ png_write(const rgba_image&im, const std::string& path)
 
 	png_init_io(png_ptr, f.s);
 
-	png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
+	png_set_compression_level(png_ptr, 9);
 
 	png_set_IHDR(
 		png_ptr,
@@ -106,7 +106,7 @@ png_read(const std::string& path)
 	auto bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 
 	if (bit_depth != 8 || color_type != PNG_COLOR_TYPE_RGBA)
-		panic("invalid bit depth in PNG");
+		panic("invalid bit depth in PNG: %s", path.c_str());
 
 	// TODO conversion for other color types
 
